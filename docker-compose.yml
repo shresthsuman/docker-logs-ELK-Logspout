@@ -1,0 +1,46 @@
+version: '3.3'
+services:
+  logspout:
+    image: gliderlabs/logspout:v3
+    command: 'udp://logstash:5000'
+    links:
+      - logstash
+    environment:
+#      - BACKLOG=false
+       - TAIL=5
+    volumes:
+      - '/var/run/docker.sock:/tmp/docker.sock'
+    depends_on:
+      - elasticsearch
+      - logstash
+      - kibana
+  logstash:
+    image: docker.elastic.co/logstash/logstash:6.5.4
+    environment:
+      - STDOUT=true
+      - LOGSPOUT=ignore
+      - DROP_NON_JSON=false
+    links:
+      - elasticsearch
+    depends_on:
+      - elasticsearch
+      - kibana
+    command: 'logstash -e "input { udp { port => 5000 } } output { elasticsearch { hosts => elasticsearch } }"'
+  kibana:
+    image: docker.elastic.co/kibana/kibana:6.5.4
+    links:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - LOGSPOUT=ignore
+    ports:
+      - '5601:5601'
+    depends_on:
+      - elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.5.4
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    environment:
+      - LOGSPOUT=ignore
